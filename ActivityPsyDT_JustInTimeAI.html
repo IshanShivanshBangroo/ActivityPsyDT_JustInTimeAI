@@ -1,0 +1,1544 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI Health Conversation Lab</title>
+  <style>
+    :root{
+      --bg:#f7f7fb;
+      --card:#ffffff;
+      --ink:#121418;
+      --muted:#5a6372;
+      --border:#e4e6ee;
+      --accent:#2b6fff;
+      --accent2:#7c3aed;
+      --good:#0f766e;
+      --warn:#b45309;
+      --bad:#b91c1c;
+      --shadow: 0 10px 25px rgba(15, 23, 42, 0.10);
+      --radius:16px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      background: radial-gradient(1200px 800px at 15% 10%, rgba(43,111,255,0.08), transparent 55%),
+                  radial-gradient(1200px 800px at 85% 15%, rgba(124,58,237,0.08), transparent 55%),
+                  var(--bg);
+      color:var(--ink);
+      line-height:1.35;
+      overflow-x:hidden;
+    }
+
+    /* floating background bubbles */
+    .bubbles{
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      z-index:-1;
+      overflow:hidden;
+    }
+    .bubble{
+      position:absolute;
+      width:180px; height:180px;
+      border-radius:999px;
+      filter: blur(0px);
+      opacity:0.25;
+      animation: floaty 18s ease-in-out infinite;
+      background: radial-gradient(circle at 30% 30%, rgba(43,111,255,0.45), rgba(43,111,255,0.05));
+      border:1px solid rgba(43,111,255,0.20);
+    }
+    .bubble.purple{
+      background: radial-gradient(circle at 30% 30%, rgba(124,58,237,0.45), rgba(124,58,237,0.05));
+      border:1px solid rgba(124,58,237,0.20);
+      animation-duration: 22s;
+    }
+    .bubble.small{ width:120px; height:120px; animation-duration: 16s;}
+    .bubble.tiny{ width:90px; height:90px; animation-duration: 14s;}
+
+    @keyframes floaty{
+      0%{ transform: translate3d(0,0,0) rotate(0deg);}
+      50%{ transform: translate3d(0,-28px,0) rotate(8deg);}
+      100%{ transform: translate3d(0,0,0) rotate(0deg);}
+    }
+
+    header{
+      max-width:1100px;
+      margin:0 auto;
+      padding:32px 20px 10px;
+      display:flex;
+      gap:14px;
+      align-items:flex-start;
+      justify-content:space-between;
+    }
+    .brand{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+    }
+    .logo{
+      width:42px; height:42px;
+      border-radius:12px;
+      background: linear-gradient(135deg, rgba(43,111,255,1), rgba(124,58,237,1));
+      box-shadow: var(--shadow);
+    }
+    h1{
+      margin:0;
+      font-size:20px;
+      letter-spacing:0.1px;
+    }
+    .subtitle{
+      margin:3px 0 0;
+      color:var(--muted);
+      font-size:13.5px;
+      max-width:640px;
+    }
+
+    .topRight{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .pill{
+      font-size:12px;
+      padding:8px 10px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,0.8);
+      border-radius:999px;
+      box-shadow: 0 6px 16px rgba(15,23,42,0.05);
+    }
+    .pill strong{font-family:var(--mono); font-weight:700;}
+    .timer{
+      font-family:var(--mono);
+      font-weight:700;
+      letter-spacing:0.4px;
+      color:var(--ink);
+    }
+    .timer.run{ color: var(--accent2); }
+
+    main{
+      max-width:1100px;
+      margin:0 auto;
+      padding: 10px 20px 60px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap:18px;
+    }
+    @media (max-width: 980px){
+      .grid{ grid-template-columns:1fr; }
+    }
+
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow: var(--shadow);
+      padding:18px;
+    }
+
+    .card h2{
+      margin:0 0 6px;
+      font-size:16px;
+    }
+    .card p{
+      margin:8px 0;
+      color:var(--muted);
+      font-size:14px;
+    }
+
+    .stepper{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-bottom:14px;
+    }
+    .step{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      color:var(--muted);
+      background:rgba(255,255,255,0.6);
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .step .dot{
+      width:8px; height:8px; border-radius:999px; background:rgba(90,99,114,0.35);
+    }
+    .step.active{
+      color:var(--ink);
+      border-color: rgba(43,111,255,0.35);
+      background: rgba(43,111,255,0.06);
+    }
+    .step.active .dot{ background: var(--accent); }
+
+    .btnRow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-top:14px;
+    }
+    button{
+      border:1px solid var(--border);
+      background: #fff;
+      color: var(--ink);
+      padding:10px 12px;
+      border-radius:12px;
+      font-weight:650;
+      cursor:pointer;
+      box-shadow: 0 6px 16px rgba(15,23,42,0.06);
+      transition: transform 0.06s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    button:hover{ border-color: rgba(43,111,255,0.45); box-shadow: 0 8px 20px rgba(15,23,42,0.10); }
+    button:active{ transform: translateY(1px); }
+
+    .primary{
+      background: linear-gradient(135deg, rgba(43,111,255,1), rgba(124,58,237,1));
+      color:white;
+      border-color: transparent;
+    }
+    .ghost{
+      background: transparent;
+      box-shadow:none;
+    }
+    .danger{
+      border-color: rgba(185,28,28,0.25);
+      color: var(--bad);
+      background: rgba(185,28,28,0.04);
+    }
+
+    .note{
+      padding:10px 12px;
+      border-radius:12px;
+      background: rgba(43,111,255,0.06);
+      border: 1px dashed rgba(43,111,255,0.35);
+      color: #1f2a44;
+      font-size:13.5px;
+      margin:12px 0;
+    }
+
+    .tiny{
+      font-size:12px;
+      color: var(--muted);
+    }
+
+    .split{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+      margin-top:12px;
+    }
+    @media(max-width: 760px){
+      .split{ grid-template-columns:1fr; }
+    }
+
+    .scenario{
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:12px;
+      background: rgba(250,250,252,0.8);
+    }
+    .scenario h3{
+      margin:0 0 6px;
+      font-size:14px;
+    }
+    .kv{
+      display:grid;
+      grid-template-columns: 140px 1fr;
+      gap:6px 10px;
+      font-size:13px;
+      color: var(--muted);
+      margin-top:8px;
+    }
+    .kv div:nth-child(odd){ color:#2b3342; font-weight:650; }
+
+    .choiceGroup{
+      margin-top:12px;
+      display:grid;
+      gap:10px;
+    }
+    .choice{
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:12px;
+      background:#fff;
+      cursor:pointer;
+      transition: border-color 0.2s ease, transform 0.06s ease;
+    }
+    .choice:hover{ border-color: rgba(43,111,255,0.45); }
+    .choice.selected{ border-color: rgba(43,111,255,0.9); box-shadow: 0 10px 20px rgba(43,111,255,0.12); }
+    .choiceHeader{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .badge{
+      font-size:11px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      color: var(--muted);
+      background: rgba(0,0,0,0.02);
+    }
+    .msg{
+      margin-top:8px;
+      font-size:13.5px;
+      color: #2b3342;
+      white-space:pre-wrap;
+    }
+
+    .ratings{
+      margin-top:12px;
+      border-top:1px solid var(--border);
+      padding-top:12px;
+      display:grid;
+      gap:10px;
+    }
+    .ratingRow{
+      display:grid;
+      grid-template-columns: 170px 1fr 42px;
+      gap:10px;
+      align-items:center;
+      font-size:13px;
+      color: var(--muted);
+    }
+    @media(max-width:760px){
+      .ratingRow{ grid-template-columns: 1fr; }
+      .ratingRow .val{ justify-self:start; }
+    }
+    input[type="range"]{ width:100%; }
+    .val{
+      font-family:var(--mono);
+      color:var(--ink);
+      font-weight:800;
+      justify-self:end;
+    }
+
+    .textBox{
+      width:100%;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:10px 12px;
+      font-size:13.5px;
+      outline:none;
+    }
+    .textBox:focus{ border-color: rgba(43,111,255,0.55); }
+
+    .chips{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:10px;
+    }
+    .chip{
+      border:1px solid var(--border);
+      padding:6px 9px;
+      border-radius:999px;
+      font-size:12.5px;
+      color: var(--muted);
+      cursor:pointer;
+      background: rgba(255,255,255,0.9);
+      user-select:none;
+    }
+    .chip.on{
+      border-color: rgba(124,58,237,0.55);
+      background: rgba(124,58,237,0.08);
+      color:#2b3342;
+    }
+
+    .mapWrap{
+      margin-top:12px;
+      border:1px dashed rgba(124,58,237,0.35);
+      background: rgba(124,58,237,0.04);
+      border-radius:16px;
+      padding:12px;
+    }
+    .mapStage{
+      position:relative;
+      height:280px;
+      border-radius:14px;
+      background: rgba(255,255,255,0.9);
+      border:1px solid var(--border);
+      overflow:hidden;
+    }
+    .node{
+      position:absolute;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,0.95);
+      font-size:12.5px;
+      color:#2b3342;
+      cursor:grab;
+      box-shadow: 0 6px 14px rgba(15,23,42,0.08);
+      user-select:none;
+      animation: drift 9s ease-in-out infinite;
+    }
+    .node:hover{ border-color: rgba(43,111,255,0.45); }
+    .node:active{ cursor:grabbing; }
+    .node.tagA{ border-color: rgba(43,111,255,0.50); background: rgba(43,111,255,0.06); }
+    .node.tagB{ border-color: rgba(124,58,237,0.50); background: rgba(124,58,237,0.06); }
+    @keyframes drift{
+      0%{ transform: translate(0,0); }
+      50%{ transform: translate(6px,-10px); }
+      100%{ transform: translate(0,0); }
+    }
+
+    .resultBox{
+      display:grid;
+      gap:10px;
+      margin-top:12px;
+    }
+    .stance{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      padding:12px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,0.9);
+    }
+    .stance strong{ font-family:var(--mono); }
+
+    .groupTag{
+      padding:6px 10px;
+      border-radius:999px;
+      font-weight:800;
+      font-family:var(--mono);
+      border:1px solid var(--border);
+      background: rgba(0,0,0,0.02);
+    }
+    .groupTag.g1{ border-color: rgba(15,118,110,0.35); background: rgba(15,118,110,0.08); color: var(--good); }
+    .groupTag.g2{ border-color: rgba(185,28,28,0.35); background: rgba(185,28,28,0.08); color: var(--bad); }
+
+    details{
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:12px;
+      background: rgba(255,255,255,0.8);
+      margin-top:10px;
+    }
+    details summary{
+      cursor:pointer;
+      font-weight:750;
+      color:#2b3342;
+    }
+    details p, details li{
+      color: var(--muted);
+      font-size:13.5px;
+    }
+    ul{ margin:8px 0 0 18px; padding:0; }
+
+    .footer{
+      margin-top:16px;
+      color: var(--muted);
+      font-size:12px;
+    }
+
+    .hide{ display:none !important; }
+  </style>
+</head>
+<body>
+  <div class="bubbles" aria-hidden="true">
+    <div class="bubble" style="left:5%; top:18%;"></div>
+    <div class="bubble purple small" style="left:76%; top:12%;"></div>
+    <div class="bubble tiny" style="left:22%; top:68%;"></div>
+    <div class="bubble purple" style="left:82%; top:62%;"></div>
+    <div class="bubble small" style="left:48%; top:78%;"></div>
+  </div>
+
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <div>
+        <h1>AI Health Conversation Lab</h1>
+        <div class="subtitle">
+          A small, hands-on activity inspired by two research ideas: LLM driven JITAI messaging and counselor style digital twins.
+          You will run two mini cases, then get a stance card that assigns you into a debate group.
+        </div>
+      </div>
+    </div>
+
+    <div class="topRight">
+      <div class="pill"><span class="timer" id="timer">25:00</span> <span class="tiny" id="timerLabel">timer</span></div>
+      <button class="ghost" id="btnStartTimer" title="Start or pause the timer">Start timer</button>
+      <button class="ghost" id="btnReset" title="Reset everything">Reset</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="grid">
+      <section class="card" id="mainCard">
+        <div class="stepper" id="stepper">
+          <div class="step active" data-step="0"><span class="dot"></span>Setup</div>
+          <div class="step" data-step="1"><span class="dot"></span>Case A</div>
+          <div class="step" data-step="2"><span class="dot"></span>Case B</div>
+          <div class="step" data-step="3"><span class="dot"></span>Word web</div>
+          <div class="step" data-step="4"><span class="dot"></span>Stance card</div>
+        </div>
+
+        <!-- STEP 0 -->
+        <div class="panel" id="panel0">
+          <h2>How this works (quick)</h2>
+          <p>
+            Work in pairs or small groups. You will evaluate two short “AI assisted” messages in health settings:
+            (A) a just in time nudge for cardiac rehab, and (B) a counseling reply that tries to mirror a therapist’s style.
+          </p>
+
+          <div class="note">
+            This is a classroom simulation. The example messages are mock samples inspired by the papers, not real medical advice.
+          </div>
+
+          <div class="split">
+            <div class="scenario">
+              <h3>Pick a mode</h3>
+              <p class="tiny">Participant mode is simplest. Facilitator mode shows a suggested in class flow.</p>
+              <div class="choiceGroup">
+                <div class="choice" data-mode="participant">
+                  <div class="choiceHeader">
+                    <strong>Participant mode</strong>
+                    <span class="badge">recommended</span>
+                  </div>
+                  <div class="msg">You answer the prompts and get your stance card at the end.</div>
+                </div>
+                <div class="choice" data-mode="facilitator">
+                  <div class="choiceHeader">
+                    <strong>Facilitator mode</strong>
+                    <span class="badge">guide</span>
+                  </div>
+                  <div class="msg">Shows a 25–30 minute plan and debate prompts for 6–10 people.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="scenario">
+              <h3>Your name (optional)</h3>
+              <p class="tiny">Used only for the final stance card (nothing is uploaded anywhere).</p>
+              <input class="textBox" id="nameInput" placeholder="e.g., Ishan" />
+              <div class="note" style="margin-top:10px;">
+                Tip: keep one laptop per group. When you finish, screenshot your stance card and your word web.
+              </div>
+            </div>
+          </div>
+
+          <details id="facilDetails" class="hide">
+            <summary>Facilitator cheat sheet (25–30 minutes)</summary>
+            <p><strong>Suggested flow:</strong></p>
+            <ul>
+              <li>2 min: explain we are testing when people trust or resist LLM generated health messages</li>
+              <li>8 min: Case A in pairs or small groups, decide what you would send and why</li>
+              <li>8 min: Case B, judge style match vs safety and boundaries</li>
+              <li>5 min: build a quick word web of the biggest design tensions</li>
+              <li>7 min: split by stance card and do Doubter and Believer debate (or fishbowl)</li>
+            </ul>
+            <p class="tiny">Discussion prompt: When does “better rated messages” actually justify deployment in real care?</p>
+          </details>
+
+          <div class="btnRow">
+            <button class="primary" id="btnToCaseA">Start Case A</button>
+          </div>
+        </div>
+
+        <!-- STEP 1 -->
+        <div class="panel hide" id="panel1">
+          <h2>Case A: “Send a just in time nudge?”</h2>
+          <p>
+            You are designing a just in time adaptive intervention (a JITAI). The goal is to send short supportive messages at the right moment,
+            based on a user’s context. Choose the best message, rate it, then decide how you would deploy it.
+          </p>
+
+          <div class="split">
+            <div class="scenario" id="caseAContext"></div>
+
+            <div class="scenario">
+              <h3>Pick the message you would send</h3>
+              <p class="tiny">Choose one. There is no “correct” answer here, but your choice affects your stance card.</p>
+              <div class="choiceGroup" id="caseAChoices"></div>
+            </div>
+          </div>
+
+          <div class="ratings" id="caseARatings">
+            <div class="ratingRow">
+              <div>Appropriateness</div>
+              <input type="range" min="1" max="5" value="3" id="a_app" />
+              <div class="val" id="a_app_v">3</div>
+            </div>
+            <div class="ratingRow">
+              <div>Engagement</div>
+              <input type="range" min="1" max="5" value="3" id="a_eng" />
+              <div class="val" id="a_eng_v">3</div>
+            </div>
+            <div class="ratingRow">
+              <div>Effectiveness</div>
+              <input type="range" min="1" max="5" value="3" id="a_eff" />
+              <div class="val" id="a_eff_v">3</div>
+            </div>
+            <div class="ratingRow">
+              <div>Professional tone</div>
+              <input type="range" min="1" max="5" value="3" id="a_pro" />
+              <div class="val" id="a_pro_v">3</div>
+            </div>
+
+            <div class="scenario">
+              <h3>Deploy decision</h3>
+              <p class="tiny">If you had to ship this tomorrow, what would you do?</p>
+              <div class="chips" id="a_deploy">
+                <div class="chip" data-val="send_now">Send as-is</div>
+                <div class="chip" data-val="send_edit">Send but edit first</div>
+                <div class="chip" data-val="dont_send">Do not send</div>
+                <div class="chip" data-val="human_review">Require human review</div>
+              </div>
+
+              <p class="tiny" style="margin-top:10px;">What extra info would you want before sending? (pick any)</p>
+              <div class="chips" id="a_need">
+                <div class="chip" data-val="prefs">User preferences</div>
+                <div class="chip" data-val="contra">Contraindications or safety flags</div>
+                <div class="chip" data-val="history">Recent history (last 7 days)</div>
+                <div class="chip" data-val="clinician">Clinician plan/goals</div>
+                <div class="chip" data-val="location">Location + constraints</div>
+                <div class="chip" data-val="none">Nothing more</div>
+              </div>
+
+              <div style="margin-top:10px;">
+                <label class="tiny" for="a_risk">One risk you see (1 sentence):</label>
+                <input class="textBox" id="a_risk" placeholder="e.g., could push too hard when someone is injured" />
+              </div>
+            </div>
+          </div>
+
+          <div class="btnRow">
+            <button class="ghost" id="btnBack0">Back</button>
+            <button class="primary" id="btnToCaseB">Continue to Case B</button>
+          </div>
+        </div>
+
+        <!-- STEP 2 -->
+        <div class="panel hide" id="panel2">
+          <h2>Case B: “Therapist style digital twin?”</h2>
+          <p>
+            Now imagine a “digital twin” that tries to match a real counselor’s style in multi turn dialogue. Your job is to judge
+            whether the reply is both (1) style aligned and (2) safe and appropriate.
+          </p>
+
+          <div class="split">
+            <div class="scenario" id="caseBContext"></div>
+
+            <div class="scenario">
+              <h3>Pick the reply you would send</h3>
+              <p class="tiny">Pick one. Then rate it on empathy, helpfulness, boundaries, and style match.</p>
+              <div class="choiceGroup" id="caseBChoices"></div>
+            </div>
+          </div>
+
+          <div class="ratings">
+            <div class="ratingRow">
+              <div>Empathy</div>
+              <input type="range" min="1" max="5" value="3" id="b_emp" />
+              <div class="val" id="b_emp_v">3</div>
+            </div>
+            <div class="ratingRow">
+              <div>Helpfulness</div>
+              <input type="range" min="1" max="5" value="3" id="b_help" />
+              <div class="val" id="b_help_v">3</div>
+            </div>
+            <div class="ratingRow">
+              <div>Boundaries / safety</div>
+              <input type="range" min="1" max="5" value="3" id="b_safe" />
+              <div class="val" id="b_safe_v">3</div>
+            </div>
+            <div class="ratingRow">
+              <div>Style match</div>
+              <input type="range" min="1" max="5" value="3" id="b_style" />
+              <div class="val" id="b_style_v">3</div>
+            </div>
+
+            <div class="scenario">
+              <h3>Deployment stance</h3>
+              <p class="tiny">If this was a real clinic, how would you use the “digital twin” idea?</p>
+              <div class="chips" id="b_deploy">
+                <div class="chip" data-val="deploy">Deploy to users directly</div>
+                <div class="chip" data-val="draft">Use as draft assistant for counselor</div>
+                <div class="chip" data-val="training">Use only for training/simulation</div>
+                <div class="chip" data-val="nope">Do not deploy</div>
+              </div>
+
+              <div style="margin-top:10px;">
+                <label class="tiny" for="b_mitigate">One mitigation you would add (1 sentence):</label>
+                <input class="textBox" id="b_mitigate" placeholder="e.g., add escalation when self-harm signals appear" />
+              </div>
+            </div>
+          </div>
+
+          <div class="btnRow">
+            <button class="ghost" id="btnBack1">Back</button>
+            <button class="primary" id="btnToWeb">Continue to Word Web</button>
+          </div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div class="panel hide" id="panel3">
+          <h2>Word web: What are we really arguing about?</h2>
+          <p>
+            Quick concept map. Pick up to 8 words that capture the biggest design tensions you noticed. Drag them around.
+            This is the thing you show during discussion.
+          </p>
+
+          <div class="note">
+            Aim: connect ideas from both papers. For example, personalization vs safety, or context awareness vs accountability.
+          </div>
+
+          <div class="split">
+            <div class="scenario">
+              <h3>Tap words to add them</h3>
+              <p class="tiny">Blue is “JITAI messaging”, purple is “digital twin counseling”. You can add your own too.</p>
+
+              <div class="chips" id="wordBank"></div>
+
+              <div style="margin-top:10px;">
+                <div class="tiny">Add your own word</div>
+                <div class="btnRow">
+                  <input class="textBox" id="customWord" placeholder="e.g., liability" style="flex:1; min-width:180px;" />
+                  <button id="btnAddWord">Add</button>
+                  <button class="danger" id="btnClearMap">Clear map</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="mapWrap">
+              <h3 style="margin:0 0 8px; font-size:14px;">Your word web</h3>
+              <div class="mapStage" id="mapStage" aria-label="Word web canvas"></div>
+              <div class="tiny" style="margin-top:8px;">
+                Tip: take a screenshot. In discussion, point to 2 links you think are the hardest tradeoff.
+              </div>
+            </div>
+          </div>
+
+          <div class="btnRow">
+            <button class="ghost" id="btnBack2">Back</button>
+            <button class="primary" id="btnToResult">Get my stance card</button>
+          </div>
+        </div>
+
+        <!-- STEP 4 -->
+        <div class="panel hide" id="panel4">
+          <h2>Your stance card</h2>
+          <p>
+            Based on your choices, you get assigned to one of two debate groups. This is not a grade, it’s just a way to split the room.
+            The real point is the discussion.
+          </p>
+
+          <div class="resultBox" id="resultBox"></div>
+
+          <details>
+            <summary>Debate prompt (Doubter and Believer)</summary>
+            <p><strong>Believer (Group 1):</strong> argue these papers show LLM based health interventions are practical and useful now, if designed carefully.</p>
+            <p><strong>Doubter (Group 2):</strong> argue the evidence is not enough, risks are under-explored, and deployment should be limited.</p>
+            <ul>
+              <li>Use your word web: pick 2 tensions and build your argument around them</li>
+              <li>Try to be fair: name one strength and one weakness of your own side</li>
+            </ul>
+          </details>
+
+          <details>
+            <summary>Optional: export your answers (JSON)</summary>
+            <p class="tiny">If you want to save your group’s responses, you can download them here.</p>
+            <div class="btnRow">
+              <button id="btnDownload">Download results</button>
+              <button class="ghost" id="btnCopy">Copy results</button>
+            </div>
+            <textarea class="textBox" id="resultsText" rows="6" style="margin-top:10px; font-family:var(--mono);"></textarea>
+          </details>
+
+          <div class="btnRow">
+            <button class="ghost" id="btnBack3">Back</button>
+            <button class="primary" id="btnRestart">Restart</button>
+          </div>
+
+          <div class="footer">
+            Credits: Activity inspired by two research directions: LLM generated JITAI messaging and counselor style digital twins.
+          </div>
+        </div>
+      </section>
+
+      <aside class="card">
+        <h2>Paper cheat sheet (tiny)</h2>
+        <p>
+          You do not need to memorize details. Use this as a reminder for discussion.
+        </p>
+
+        <details open>
+          <summary>Paper A: LLM driven JITAI messaging</summary>
+          <ul>
+            <li>Idea: LLM can decide when to intervene and write context aware motivational messages for health behavior.</li>
+            <li>Question: if the messages are rated better than humans, does that mean we should automate JITAIs?</li>
+            <li>Big tension: personalization vs safety and accountability.</li>
+          </ul>
+        </details>
+
+        <details open>
+          <summary>Paper B: Counselor style digital twins</summary>
+          <ul>
+            <li>Idea: capture a counselor’s style and generate therapy like replies that feel consistent with that counselor.</li>
+            <li>Question: is “style matching” actually the right goal, or do we need stricter clinical guardrails?</li>
+            <li>Big tension: empathy and rapport vs boundaries and harm prevention.</li>
+          </ul>
+        </details>
+
+        <details>
+          <summary>What to watch for during debate</summary>
+          <ul>
+            <li>Evidence: what did the evaluations really measure, and what did they skip?</li>
+            <li>Generalization: do results travel to new contexts, new populations, or higher stakes?</li>
+            <li>Failure modes: wrong but persuasive advice, privacy, dependency, equity.</li>
+            <li>Design response: what guardrails, workflows, or audits would you add?</li>
+          </ul>
+        </details>
+
+        <div class="note" style="margin-top:12px;">
+          Small group tip: pick one person as “driver” on the laptop and one person as “devil’s advocate”.
+        </div>
+      </aside>
+    </div>
+  </main>
+
+<script>
+  // -----------------------------
+  // Data (scenarios + messages)
+  // -----------------------------
+
+  // Case A: JITAI (cardiac rehab-ish) - we include two scenario variants to produce different outcomes
+  const caseA_scenarios = [
+    {
+      title: "Scenario A1: rainy day + low steps",
+      persona: "Alex, 54, enrolled in cardiac rehab program",
+      context: {
+        "Time": "6:40pm",
+        "Today’s steps": "2,100 (goal 6,000)",
+        "Weather": "Rainy, cold",
+        "Mood": "Tired, a bit unmotivated",
+        "Recent activity": "Long meeting day, no exercise yet",
+        "Safety note": "No chest pain reported today"
+      },
+      choices: [
+        {
+          id:"A_LLM",
+          tag:"AI-drafted",
+          msg:"Hey Alex, rough weather day. If a full walk feels too much, try a 7 minute indoor loop or light stretching while the kettle boils. Small counts today still protect the habit. Want a tiny goal for the next hour?",
+          scoreBias: +2
+        },
+        {
+          id:"A_TEMPLATE",
+          tag:"Template",
+          msg:"Reminder: Please complete your daily exercise. Walking 30 minutes improves heart health. Try to reach your goal today.",
+          scoreBias: -1
+        },
+        {
+          id:"A_OVERPUSH",
+          tag:"Overconfident",
+          msg:"You must hit 6,000 steps today no excuses. Push through it. Your heart needs it.",
+          scoreBias: -3
+        }
+      ]
+    },
+    {
+      title: "Scenario A2: already active + risk of annoyance",
+      persona: "Maya, 47, doing home-based rehab",
+      context: {
+        "Time": "9:10am",
+        "Today’s steps": "5,800 (goal 6,000)",
+        "Weather": "Sunny",
+        "Mood": "Good",
+        "Recent activity": "Morning walk completed",
+        "Safety note": "Reported slight knee soreness yesterday"
+      },
+      choices: [
+        {
+          id:"A_LLM",
+          tag:"AI-drafted",
+          msg:"Nice work this morning, Maya. Since your knee was a bit sore, consider a gentle cool-down and check how it feels before adding more. If you want to top up steps, a short easy stroll is enough.",
+          scoreBias: +2
+        },
+        {
+          id:"A_TEMPLATE",
+          tag:"Template",
+          msg:"Reminder: Please complete your daily exercise. Walking 30 minutes improves heart health. Try to reach your goal today.",
+          scoreBias: 0
+        },
+        {
+          id:"A_BAD",
+          tag:"Tone mismatch",
+          msg:"You are behind schedule. Increase intensity now to avoid setbacks.",
+          scoreBias: -2
+        }
+      ]
+    }
+  ];
+
+  // Case B: PsyDT (therapy digital twin) - two scenario variants as well
+  const caseB_scenarios = [
+    {
+      title: "Scenario B1: CBT-ish counselor style",
+      style: "Counselor style: calm, structured, uses gentle Socratic questions (CBT-ish).",
+      client: "Client: Sam says, “I keep thinking I’m failing at my job. I can’t focus and I feel stuck.”",
+      choices: [
+        {
+          id:"B_STYLE",
+          tag:"Style-matched",
+          msg:"Thanks for sharing that, Sam. Let’s slow it down a bit. When you think “I’m failing,” what’s the evidence you notice in the moment, and what evidence points the other way? Also, what’s one small task you *did* finish recently, even if it felt minor?",
+          scoreBias:+2
+        },
+        {
+          id:"B_GENERIC",
+          tag:"Generic empathy",
+          msg:"That sounds really hard. Try to stay positive and remember you are doing your best. Things will get better soon.",
+          scoreBias:0
+        },
+        {
+          id:"B_RISKY",
+          tag:"Boundary risk",
+          msg:"I can diagnose you with depression based on what you said. You should change medication right away.",
+          scoreBias:-4
+        }
+      ]
+    },
+    {
+      title: "Scenario B2: humanistic reflective style",
+      style: "Counselor style: reflective listening, validation, asks permission before advice.",
+      client: "Client: Jordan says, “I feel numb, and honestly I don’t want to talk to anyone.”",
+      choices: [
+        {
+          id:"B_STYLE",
+          tag:"Style-matched",
+          msg:"It sounds like things have been heavy enough that shutting down feels safer. If it’s okay, can I ask what the last few days have been like for you? And we can go slow, we don’t have to force a big conversation.",
+          scoreBias:+2
+        },
+        {
+          id:"B_GENERIC",
+          tag:"Generic advice",
+          msg:"You should talk to your friends and try going outside. Exercise will help and you will feel happier.",
+          scoreBias:-1
+        },
+        {
+          id:"B_RISKY",
+          tag:"Harm risk",
+          msg:"If you don’t want to talk to anyone, then just isolate until it passes. It’s fine.",
+          scoreBias:-3
+        }
+      ]
+    }
+  ];
+
+  const word_bank = [
+    {t:"personalization", tag:"A"},
+    {t:"context signals", tag:"A"},
+    {t:"timing", tag:"A"},
+    {t:"clinician oversight", tag:"A"},
+    {t:"tone", tag:"A"},
+    {t:"accountability", tag:"A"},
+    {t:"safety flags", tag:"A"},
+    {t:"evaluation metrics", tag:"A"},
+    {t:"style matching", tag:"B"},
+    {t:"empathy", tag:"B"},
+    {t:"boundaries", tag:"B"},
+    {t:"rapport", tag:"B"},
+    {t:"data privacy", tag:"B"},
+    {t:"hallucination", tag:"B"},
+    {t:"escalation", tag:"B"},
+    {t:"liability", tag:"B"},
+    {t:"equity", tag:"B"},
+    {t:"generalization", tag:"B"}
+  ];
+
+  // -----------------------------
+  // State
+  // -----------------------------
+  const state = {
+    mode: "participant",
+    name: "",
+    caseA: {scenario:null, pick:null, ratings:{}, deploy:[], need:[], risk:""},
+    caseB: {scenario:null, pick:null, ratings:{}, deploy:[], mitigate:""},
+    map: {nodes:[]},
+    score: 0,
+    group: 2,
+    feedback: ""
+  };
+
+  let currentStep = 0;
+
+  // -----------------------------
+  // Helpers
+  // -----------------------------
+  function $(id){ return document.getElementById(id); }
+  function clamp(x,a,b){ return Math.max(a, Math.min(b,x)); }
+  function setStep(step){
+    currentStep = step;
+    for(let i=0;i<=4;i++){
+      const p = $("panel"+i);
+      if(!p) continue;
+      p.classList.toggle("hide", i !== step);
+    }
+    // stepper highlight
+    document.querySelectorAll(".step").forEach(s=>{
+      s.classList.toggle("active", Number(s.dataset.step)===step);
+    });
+    // show facilitator details if chosen
+    $("facilDetails").classList.toggle("hide", state.mode !== "facilitator");
+  }
+
+  function choiceSelect(containerId, pickedId){
+    const box = $(containerId);
+    box.querySelectorAll(".choice").forEach(c=>{
+      c.classList.toggle("selected", c.dataset.id===pickedId);
+    });
+  }
+
+  function chipsToggle(containerId, maxOne=false){
+    const box = $(containerId);
+    box.addEventListener("click", (e)=>{
+      const chip = e.target.closest(".chip");
+      if(!chip) return;
+      if(maxOne){
+        box.querySelectorAll(".chip").forEach(x=>x.classList.remove("on"));
+        chip.classList.add("on");
+      } else {
+        chip.classList.toggle("on");
+      }
+    });
+  }
+
+  function chipsValues(containerId){
+    const box = $(containerId);
+    const vals = [];
+    box.querySelectorAll(".chip.on").forEach(c=>vals.push(c.dataset.val));
+    return vals;
+  }
+
+  function renderKV(obj){
+    let html = "<div class='kv'>";
+    for(const k in obj){
+      html += `<div>${k}</div><div>${obj[k]}</div>`;
+    }
+    html += "</div>";
+    return html;
+  }
+
+  function updateRange(id){
+    const el=$(id);
+    const out=$(id+"_v");
+    out.textContent = el.value;
+    el.addEventListener("input", ()=> out.textContent = el.value);
+  }
+
+  // -----------------------------
+  // Timer
+  // -----------------------------
+  let timerSeconds = 25*60;
+  let timerRunning = false;
+  let timerHandle = null;
+
+  function renderTimer(){
+    const m = Math.floor(timerSeconds/60);
+    const s = timerSeconds%60;
+    $("timer").textContent = String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+  }
+
+  function tick(){
+    if(!timerRunning) return;
+    timerSeconds = Math.max(0, timerSeconds-1);
+    renderTimer();
+    if(timerSeconds===0){
+      timerRunning=false;
+      $("timer").classList.remove("run");
+      $("timerLabel").textContent="time";
+      $("btnStartTimer").textContent="Start timer";
+      clearInterval(timerHandle);
+      timerHandle=null;
+      alert("Timer done. Move to discussion / debate.");
+    }
+  }
+
+  $("btnStartTimer").addEventListener("click", ()=>{
+    timerRunning = !timerRunning;
+    $("timer").classList.toggle("run", timerRunning);
+    $("timerLabel").textContent = timerRunning ? "running" : "timer";
+    $("btnStartTimer").textContent = timerRunning ? "Pause timer" : "Start timer";
+    if(timerRunning && !timerHandle){
+      timerHandle = setInterval(tick, 1000);
+    }
+    if(!timerRunning && timerHandle){
+      clearInterval(timerHandle);
+      timerHandle=null;
+    }
+  });
+
+  $("btnReset").addEventListener("click", ()=>{
+    if(!confirm("Reset the activity?")) return;
+    window.location.reload();
+  });
+
+  // -----------------------------
+  // Mode selection (Step 0)
+  // -----------------------------
+  document.querySelectorAll("[data-mode]").forEach(el=>{
+    el.addEventListener("click", ()=>{
+      document.querySelectorAll("[data-mode]").forEach(x=>x.classList.remove("selected"));
+      el.classList.add("selected");
+      state.mode = el.dataset.mode;
+      $("facilDetails").classList.toggle("hide", state.mode !== "facilitator");
+    });
+  });
+
+  $("nameInput").addEventListener("input", (e)=> state.name = e.target.value.trim());
+
+  // -----------------------------
+  // Render Case A
+  // -----------------------------
+  function setupCaseA(){
+    state.caseA.scenario = caseA_scenarios[Math.floor(Math.random()*caseA_scenarios.length)];
+    const sc = state.caseA.scenario;
+
+    $("caseAContext").innerHTML = `
+      <h3>${sc.title}</h3>
+      <p class="tiny"><strong>${sc.persona}</strong></p>
+      ${renderKV(sc.context)}
+      <div class="note" style="margin-top:10px;">
+        Task: pick 1 message. Then rate it. Then decide how you would deploy.
+      </div>
+    `;
+
+    const choices = sc.choices.map(ch=>{
+      return `
+        <div class="choice" data-id="${ch.id}">
+          <div class="choiceHeader">
+            <strong>Option ${ch.id.split("_")[1]}</strong>
+            <span class="badge">${ch.tag}</span>
+          </div>
+          <div class="msg">${ch.msg}</div>
+        </div>
+      `;
+    }).join("");
+
+    $("caseAChoices").innerHTML = choices;
+
+    $("caseAChoices").querySelectorAll(".choice").forEach(c=>{
+      c.addEventListener("click", ()=>{
+        state.caseA.pick = c.dataset.id;
+        choiceSelect("caseAChoices", state.caseA.pick);
+      });
+    });
+  }
+
+  // -----------------------------
+  // Render Case B
+  // -----------------------------
+  function setupCaseB(){
+    state.caseB.scenario = caseB_scenarios[Math.floor(Math.random()*caseB_scenarios.length)];
+    const sc = state.caseB.scenario;
+
+    $("caseBContext").innerHTML = `
+      <h3>${sc.title}</h3>
+      <p class="tiny">${sc.style}</p>
+      <div class="note">${sc.client}</div>
+      <div class="note" style="background: rgba(185,28,28,0.04); border-color: rgba(185,28,28,0.25); color:#2b3342;">
+        Safety check: if a reply claims diagnosis, tells medication changes, or dismisses harm, that’s a red flag.
+      </div>
+    `;
+
+    const choices = sc.choices.map(ch=>{
+      return `
+        <div class="choice" data-id="${ch.id}">
+          <div class="choiceHeader">
+            <strong>Option ${ch.id.split("_")[1]}</strong>
+            <span class="badge">${ch.tag}</span>
+          </div>
+          <div class="msg">${ch.msg}</div>
+        </div>
+      `;
+    }).join("");
+
+    $("caseBChoices").innerHTML = choices;
+
+    $("caseBChoices").querySelectorAll(".choice").forEach(c=>{
+      c.addEventListener("click", ()=>{
+        state.caseB.pick = c.dataset.id;
+        choiceSelect("caseBChoices", state.caseB.pick);
+      });
+    });
+  }
+
+  // -----------------------------
+  // Word web
+  // -----------------------------
+  function setupWordBank(){
+    const bank = $("wordBank");
+    bank.innerHTML = "";
+    word_bank.forEach((w, idx)=>{
+      const chip = document.createElement("div");
+      chip.className = "chip";
+      chip.textContent = (w.tag==="A" ? "A " : "B ") + w.t;
+      chip.dataset.word = w.t;
+      chip.dataset.tag = w.tag;
+      chip.addEventListener("click", ()=>{
+        addNode(w.t, w.tag);
+      });
+      bank.appendChild(chip);
+    });
+  }
+
+  function randomPos(stage){
+    const rect = stage.getBoundingClientRect();
+    const x = Math.random()*(rect.width-140) + 10;
+    const y = Math.random()*(rect.height-50) + 10;
+    return {x,y};
+  }
+
+  function addNode(text, tag){
+    const stage = $("mapStage");
+    // max 8 nodes to keep it clean
+    if(stage.querySelectorAll(".node").length >= 8) return alert("Max 8 words, keep it simple.");
+    const node = document.createElement("div");
+    node.className = "node " + (tag==="A" ? "tagA" : "tagB");
+    node.textContent = text;
+    node.dataset.tag = tag;
+    const pos = randomPos(stage);
+    node.style.left = pos.x + "px";
+    node.style.top  = pos.y + "px";
+    stage.appendChild(node);
+    enableDrag(node, stage);
+  }
+
+  function clearMap(){
+    $("mapStage").innerHTML = "";
+  }
+
+  function enableDrag(node, stage){
+    let isDown=false, startX=0, startY=0, origX=0, origY=0;
+    node.addEventListener("mousedown", (e)=>{
+      isDown=true;
+      node.style.animation="none";
+      startX=e.clientX; startY=e.clientY;
+      origX=parseFloat(node.style.left); origY=parseFloat(node.style.top);
+      e.preventDefault();
+    });
+    window.addEventListener("mousemove", (e)=>{
+      if(!isDown) return;
+      const dx=e.clientX-startX, dy=e.clientY-startY;
+      const rect=stage.getBoundingClientRect();
+      const nx=clamp(origX+dx, 0, rect.width-80);
+      const ny=clamp(origY+dy, 0, rect.height-30);
+      node.style.left=nx+"px";
+      node.style.top=ny+"px";
+    });
+    window.addEventListener("mouseup", ()=>{
+      if(!isDown) return;
+      isDown=false;
+      node.style.animation="";
+    });
+    // touch support
+    node.addEventListener("touchstart", (e)=>{
+      const t=e.touches[0];
+      isDown=true;
+      node.style.animation="none";
+      startX=t.clientX; startY=t.clientY;
+      origX=parseFloat(node.style.left); origY=parseFloat(node.style.top);
+      e.preventDefault();
+    }, {passive:false});
+    window.addEventListener("touchmove", (e)=>{
+      if(!isDown) return;
+      const t=e.touches[0];
+      const dx=t.clientX-startX, dy=t.clientY-startY;
+      const rect=stage.getBoundingClientRect();
+      const nx=clamp(origX+dx, 0, rect.width-80);
+      const ny=clamp(origY+dy, 0, rect.height-30);
+      node.style.left=nx+"px";
+      node.style.top=ny+"px";
+      e.preventDefault();
+    }, {passive:false});
+    window.addEventListener("touchend", ()=>{
+      if(!isDown) return;
+      isDown=false;
+      node.style.animation="";
+    });
+  }
+
+  $("btnAddWord").addEventListener("click", ()=>{
+    const w = $("customWord").value.trim();
+    if(!w) return;
+    $("customWord").value="";
+    addNode(w, "B");
+  });
+
+  $("btnClearMap").addEventListener("click", ()=>{
+    if(!confirm("Clear the word web?")) return;
+    clearMap();
+  });
+
+  // -----------------------------
+  // Scoring + stance card
+  // -----------------------------
+  function computeScore(){
+    let score = 50; // start neutral
+
+    // Case A
+    const scA = state.caseA.scenario;
+    const pickA = scA?.choices.find(c=>c.id===state.caseA.pick);
+    if(pickA) score += pickA.scoreBias * 6;
+
+    const aR = state.caseA.ratings;
+    const aMean = (aR.app + aR.eng + aR.eff + aR.pro)/4;
+    score += (aMean-3)*5; // above 3 => more optimistic
+
+    const depA = state.caseA.deploy;
+    if(depA.includes("send_now")) score += 6;
+    if(depA.includes("send_edit")) score += 3;
+    if(depA.includes("dont_send")) score -= 6;
+    if(depA.includes("human_review")) score -= 3;
+
+    // wanting more safety info is slightly cautious (not bad)
+    const needA = state.caseA.need;
+    if(needA.includes("contra") || needA.includes("clinician")) score -= 2;
+    if(needA.includes("none")) score += 2;
+
+    // Case B
+    const scB = state.caseB.scenario;
+    const pickB = scB?.choices.find(c=>c.id===state.caseB.pick);
+    if(pickB) score += pickB.scoreBias * 6;
+
+    const bR = state.caseB.ratings;
+    const bMean = (bR.emp + bR.help + bR.safe + bR.style)/4;
+    score += (bMean-3)*5;
+
+    const depB = state.caseB.deploy;
+    if(depB.includes("deploy")) score += 6;
+    if(depB.includes("draft")) score += 2; // cautious but positive
+    if(depB.includes("training")) score -= 1;
+    if(depB.includes("nope")) score -= 6;
+
+    // guardrails note: if safety rating is low but they still deploy, penalize
+    if(bR.safe <= 2 && depB.includes("deploy")) score -= 8;
+
+    score = clamp(Math.round(score), 0, 100);
+    state.score = score;
+
+    // group assignment threshold
+    state.group = (score >= 55) ? 1 : 2;
+
+    // feedback line (single sentence-ish)
+    if(score >= 75){
+      state.feedback = "You are pretty comfortable shipping LLM generated health messaging, but you should keep tight safety checks so “good tone” does not hide bad advice.";
+    } else if(score >= 55){
+      state.feedback = "You are cautiously optimistic, you want the benefits of personalization but you still expect guardrails and oversight before full automation.";
+    } else if(score >= 35){
+      state.feedback = "You lean safety-first, you see value in LLM help but you want stronger evidence, clearer accountability, and better failure handling.";
+    } else {
+      state.feedback = "You are strongly skeptical about deploying these systems directly, which is fair, your best next move is to define what evidence would change your mind.";
+    }
+  }
+
+  function renderResult(){
+    computeScore();
+
+    const name = state.name ? state.name : "Participant";
+    const groupTag = state.group===1
+      ? `<span class="groupTag g1">Group 1</span>`
+      : `<span class="groupTag g2">Group 2</span>`;
+
+    const stanceLabel = state.group===1 ? "Believer leaning" : "Doubter leaning";
+    const scoreColor = state.score>=55 ? "var(--good)" : "var(--bad)";
+
+    const box = $("resultBox");
+    box.innerHTML = `
+      <div class="stance">
+        <div>
+          <div class="tiny">Name</div>
+          <strong>${escapeHtml(name)}</strong>
+        </div>
+        <div>
+          <div class="tiny">Debate group</div>
+          ${groupTag}
+        </div>
+      </div>
+
+      <div class="stance">
+        <div>
+          <div class="tiny">Stance</div>
+          <strong>${stanceLabel}</strong>
+        </div>
+        <div>
+          <div class="tiny">Score</div>
+          <strong style="color:${scoreColor};">${state.score}/100</strong>
+        </div>
+      </div>
+
+      <div class="note" style="margin:0;">
+        ${state.feedback}
+      </div>
+
+      <div class="scenario">
+        <h3 style="margin:0 0 6px; font-size:14px;">Quick share out</h3>
+        <div class="tiny">
+          Say one sentence: “I ended up in Group ${state.group} because I ____ and I worry about ____.”
+        </div>
+      </div>
+    `;
+
+    // results export text
+    const resultsObj = {
+      name: name,
+      mode: state.mode,
+      score: state.score,
+      group: state.group,
+      caseA: {
+        scenario: state.caseA.scenario?.title,
+        pick: state.caseA.pick,
+        ratings: state.caseA.ratings,
+        deploy: state.caseA.deploy,
+        need: state.caseA.need,
+        risk: state.caseA.risk
+      },
+      caseB: {
+        scenario: state.caseB.scenario?.title,
+        pick: state.caseB.pick,
+        ratings: state.caseB.ratings,
+        deploy: state.caseB.deploy,
+        mitigate: state.caseB.mitigate
+      }
+    };
+    $("resultsText").value = JSON.stringify(resultsObj, null, 2);
+  }
+
+  function escapeHtml(str){
+    return (str||"").replace(/[&<>"']/g, s=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[s]));
+  }
+
+  // -----------------------------
+  // Navigation buttons
+  // -----------------------------
+  $("btnToCaseA").addEventListener("click", ()=>{
+    // require mode selected
+    if(!state.mode){
+      alert("Pick a mode first.");
+      return;
+    }
+    // require a mode selection click? if not, default participant
+    if(!document.querySelector(".choice[data-mode].selected")){
+      // default
+      document.querySelector(".choice[data-mode='participant']").classList.add("selected");
+      state.mode="participant";
+    }
+    setStep(1);
+  });
+
+  $("btnBack0").addEventListener("click", ()=> setStep(0));
+  $("btnBack1").addEventListener("click", ()=> setStep(1));
+  $("btnBack2").addEventListener("click", ()=> setStep(2));
+  $("btnBack3").addEventListener("click", ()=> setStep(3));
+
+  $("btnToCaseB").addEventListener("click", ()=>{
+    if(!state.caseA.pick){
+      alert("Pick a message option before continuing.");
+      return;
+    }
+    // save ratings + chips + text
+    state.caseA.ratings = {
+      app: Number($("a_app").value),
+      eng: Number($("a_eng").value),
+      eff: Number($("a_eff").value),
+      pro: Number($("a_pro").value)
+    };
+    state.caseA.deploy = chipsValues("a_deploy");
+    if(state.caseA.deploy.length===0){
+      alert("Pick at least one deploy decision (Send / Edit / Don't send / Human review).");
+      return;
+    }
+    state.caseA.need = chipsValues("a_need");
+    state.caseA.risk = $("a_risk").value.trim();
+    setStep(2);
+  });
+
+  $("btnToWeb").addEventListener("click", ()=>{
+    if(!state.caseB.pick){
+      alert("Pick a reply option before continuing.");
+      return;
+    }
+    state.caseB.ratings = {
+      emp: Number($("b_emp").value),
+      help: Number($("b_help").value),
+      safe: Number($("b_safe").value),
+      style: Number($("b_style").value)
+    };
+    state.caseB.deploy = chipsValues("b_deploy");
+    if(state.caseB.deploy.length===0){
+      alert("Pick one deployment stance.");
+      return;
+    }
+    state.caseB.mitigate = $("b_mitigate").value.trim();
+    setStep(3);
+  });
+
+  $("btnToResult").addEventListener("click", ()=>{
+    setStep(4);
+    renderResult();
+  });
+
+  $("btnRestart").addEventListener("click", ()=> window.location.reload());
+
+  // download / copy
+  $("btnDownload").addEventListener("click", ()=>{
+    const blob = new Blob([$("resultsText").value], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ai_health_conversation_lab_results.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  $("btnCopy").addEventListener("click", async ()=>{
+    try{
+      await navigator.clipboard.writeText($("resultsText").value);
+      alert("Copied.");
+    }catch(e){
+      alert("Copy failed. You can select and copy manually.");
+    }
+  });
+
+  // reset
+  $("btnReset").addEventListener("click", ()=>{
+    if(!confirm("Reset the activity?")) return;
+    window.location.reload();
+  });
+
+  // -----------------------------
+  // Init
+  // -----------------------------
+  updateRange("a_app"); updateRange("a_eng"); updateRange("a_eff"); updateRange("a_pro");
+  updateRange("b_emp"); updateRange("b_help"); updateRange("b_safe"); updateRange("b_style");
+
+  chipsToggle("a_deploy", false);
+  chipsToggle("a_need", false);
+  chipsToggle("b_deploy", false);
+
+  setupCaseA();
+  setupCaseB();
+  setupWordBank();
+  renderTimer();
+  setStep(0);
+</script>
+</body>
+</html>
